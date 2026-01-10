@@ -497,6 +497,15 @@ if (!res.ok) {
   </div>
 ) : (
   <div className="flex flex-col gap-4">
+  {/* CUSTOMER IDENTITY */}
+  <div className="p-3 border rounded-xl bg-slate-50">
+    <p className="text-sm font-bold text-slate-800">
+      {selectedCustomer.name}
+    </p>
+    <p className="text-xs text-slate-500 font-mono">
+      {selectedCustomer.mobile}
+    </p>
+  </div>
 
     {/* POINTS WALLET */}
     <div className="bg-gradient-to-r from-slate-800 to-slate-900 text-white p-4 rounded-xl flex justify-between items-center">
