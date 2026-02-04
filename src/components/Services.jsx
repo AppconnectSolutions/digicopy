@@ -414,8 +414,10 @@ const { handleCheckout, loading } = useCheckout({
 
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {products
-            .filter((p) =>
-              (p.name || "").toLowerCase().includes(searchTerm.toLowerCase())
+  .filter(
+    (p) =>
+      p.active && // only show active products
+      (p.name || "").toLowerCase().includes(searchTerm.toLowerCase())
             )
             .map((product) => (
               <div

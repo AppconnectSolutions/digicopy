@@ -15,6 +15,8 @@ export default function ProductManager() {
 
   const role = String(loggedUser?.role || "").toUpperCase();
   const isAdmin = role === "ADMIN" || role === "OWNER";
+  const [showInactive, setShowInactive] = useState(false);
+
 
   /* ================= STATE ================= */
   const [products, setProducts] = useState([]);
@@ -67,40 +69,40 @@ export default function ProductManager() {
 
   /* ================= LOAD PRODUCTS ================= */
   useEffect(() => {
-    let alive = true;
+  let alive = true;
 
-    const fetchProducts = async () => {
-      setLoading(true);
-      setErrMsg("");
-      try {
-        const res = await fetch(`${API_URL}/api/products`);
-        const data = await res.json().catch(() => ({}));
+  const fetchProducts = async () => {
+    setLoading(true);
+    setErrMsg("");
 
-        if (!res.ok) {
-          throw new Error(data?.message || "Failed to load products");
-        }
+    try {
+      const url = showInactive
+        ? `${API_URL}/api/products/inactive`
+        : `${API_URL}/api/products`;
 
-        const list = normalizeProducts(data)
-          .map((p) => ({
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data?.message || "Fetch failed");
+
+      if (alive) {
+        setProducts(
+          normalizeProducts(data).map((p) => ({
             ...p,
             id: getId(p),
-            category: p?.category || "general",
           }))
-          .filter((p) => p.id !== undefined && p.id !== null);
-
-        if (alive) setProducts(list);
-      } catch (err) {
-        if (alive) setErrMsg(err?.message || "Fetch products error");
-      } finally {
-        if (alive) setLoading(false);
+        );
       }
-    };
+    } catch (err) {
+      if (alive) setErrMsg(err.message);
+    } finally {
+      if (alive) setLoading(false);
+    }
+  };
 
-    fetchProducts();
-    return () => {
-      alive = false;
-    };
-  }, [API_URL]);
+  fetchProducts();
+  return () => (alive = false);
+}, [API_URL, showInactive]);
 
   /* ================= ADD ================= */
   const handleSaveNew = async () => {
@@ -203,22 +205,44 @@ export default function ProductManager() {
   };
 
   /* ================= DELETE ================= */
-  const deleteProduct = async (id) => {
-    if (!window.confirm("Delete this item?")) return;
+const deleteProduct = async (id) => {
+  if (!window.confirm("Deactivate this product?")) return;
 
-    try {
-      const res = await fetch(`${API_URL}/api/products/${id}`, {
-        method: "DELETE",
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.message || "Delete failed");
+  try {
+    const res = await fetch(`${API_URL}/api/products/${id}`, {
+      method: "DELETE", // backend now sets is_active = 0
+    });
 
-      setProducts((p) => p.filter((x) => getId(x) !== id));
-      if (editingId === id) cancelEdit();
-    } catch (err) {
-      alert(err?.message || "Delete failed");
-    }
-  };
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || "Deactivate failed");
+
+    // remove from UI immediately
+    setProducts((p) => p.filter((x) => getId(x) !== id));
+
+    if (editingId === id) cancelEdit();
+  } catch (err) {
+    alert(err?.message || "Deactivate failed");
+  }
+};
+const restoreProduct = async (id) => {
+  if (!window.confirm("Restore this product?")) return;
+
+  try {
+    const res = await fetch(
+      `${API_URL}/api/products/${id}/restore`,
+      { method: "PUT" }
+    );
+
+    if (!res.ok) throw new Error("Restore failed");
+
+    // remove from recycle bin UI
+    setProducts((p) => p.filter((x) => getId(x) !== id));
+  } catch (err) {
+    alert(err.message);
+  }
+};
+
+
 
   /* ================= UI BITS ================= */
   const CategoryBadge = ({ value }) => {
@@ -264,7 +288,15 @@ export default function ProductManager() {
               >
                 <Plus size={16} /> {isAdding ? "Close" : "Add"}
               </button>
-            </div>
+               <button
+      onClick={() => setShowInactive((v) => !v)}
+      className="flex items-center justify-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold w-full sm:w-auto"
+    >
+      <X size={16} /> {showInactive ? "Show Active" : "Recycle Bin"}
+    </button>
+  </div>
+            
+            
           )}
         </div>
 
@@ -274,6 +306,8 @@ export default function ProductManager() {
           </div>
         ) : null}
       </div>
+      
+
 
       {/* ADD FORM */}
       {isAdmin && isAdding && (
@@ -423,44 +457,55 @@ export default function ProductManager() {
                     )}
                   </td>
 
-                  <td className="px-6 py-3 text-right">
-                    {isAdmin &&
-                      (isEditing ? (
-                        <div className="inline-flex items-center gap-3">
-                          <button
-                            onClick={saveEdit}
-                            className="text-green-600 hover:opacity-80"
-                            title="Save"
-                          >
-                            <Save size={18} />
-                          </button>
-                          <button
-                            onClick={cancelEdit}
-                            className="text-gray-500 hover:opacity-80"
-                            title="Cancel"
-                          >
-                            <X size={18} />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="inline-flex items-center gap-3">
-                          <button
-                            onClick={() => startEdit(p)}
-                            className="text-indigo-600 hover:opacity-80"
-                            title="Edit"
-                          >
-                            <Edit2 size={18} />
-                          </button>
-                          <button
-                            onClick={() => deleteProduct(id)}
-                            className="text-red-500 hover:opacity-80"
-                            title="Delete"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
-                      ))}
-                  </td>
+                <td className="px-6 py-3 text-right">
+  {isAdmin &&
+    (isEditing ? (
+      <div className="inline-flex items-center gap-3">
+        <button
+          onClick={saveEdit}
+          className="text-green-600 hover:opacity-80"
+          title="Save"
+        >
+          <Save size={18} />
+        </button>
+        <button
+          onClick={cancelEdit}
+          className="text-gray-500 hover:opacity-80"
+          title="Cancel"
+        >
+          <X size={18} />
+        </button>
+      </div>
+    ) : showInactive ? (
+      /* 🗑️ RECYCLE BIN VIEW → RESTORE ONLY */
+      <button
+        onClick={() => restoreProduct(id)}
+        className="text-green-600 hover:opacity-80"
+        title="Restore"
+      >
+        <Save size={18} />
+      </button>
+    ) : (
+      /* 📦 ACTIVE PRODUCTS VIEW */
+      <div className="inline-flex items-center gap-3">
+        <button
+          onClick={() => startEdit(p)}
+          className="text-indigo-600 hover:opacity-80"
+          title="Edit"
+        >
+          <Edit2 size={18} />
+        </button>
+        <button
+          onClick={() => deleteProduct(id)}
+          className="text-red-500 hover:opacity-80"
+          title="Deactivate"
+        >
+          <Trash2 size={18} />
+        </button>
+      </div>
+    ))}
+</td>
+
                 </tr>
               );
             })}
