@@ -13,8 +13,11 @@ export default function ProductManager() {
     }
   }, []);
 
-  const role = String(loggedUser?.role || "").toUpperCase();
-  const isAdmin = role === "ADMIN" || role === "OWNER";
+const role = String(loggedUser?.role || "").toUpperCase();
+
+// 🔐 ONLY SUPER ADMIN CAN DO ACTIONS
+const isSuperAdmin = role === "SUPERADMIN";
+
   const [showInactive, setShowInactive] = useState(false);
 
 
@@ -277,8 +280,9 @@ const restoreProduct = async (id) => {
             </div>
           </div>
 
-          {isAdmin && (
-            <div className="flex gap-2">
+          {isSuperAdmin && (
+  <div className="flex gap-2">
+
               <button
                 onClick={() => {
                   cancelEdit();
@@ -310,7 +314,7 @@ const restoreProduct = async (id) => {
 
 
       {/* ADD FORM */}
-      {isAdmin && isAdding && (
+      {isSuperAdmin && isAdding && (
         <div className="p-4 bg-indigo-50 border-b">
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
             <div className="sm:col-span-2">
@@ -381,7 +385,7 @@ const restoreProduct = async (id) => {
       {!loading && products.length === 0 ? (
         <div className="p-8 text-center text-gray-500">
           No products found.
-          {isAdmin ? " Click Add to create your first item." : ""}
+          {isSuperAdmin ? " Click Add to create your first item." : ""}
         </div>
       ) : null}
 
@@ -393,7 +397,8 @@ const restoreProduct = async (id) => {
               <th className="px-6 py-3 text-left">Item</th>
               <th className="px-6 py-3 text-left">Category</th>
               <th className="px-6 py-3 text-left">Price</th>
-              <th className="px-6 py-3 text-right">{isAdmin ? "Actions" : ""}</th>
+             <th className="px-6 py-3 text-right">{isSuperAdmin ? "Actions" : ""}</th>
+
             </tr>
           </thead>
 
@@ -458,7 +463,7 @@ const restoreProduct = async (id) => {
                   </td>
 
                 <td className="px-6 py-3 text-right">
-  {isAdmin &&
+  {isSuperAdmin &&
     (isEditing ? (
       <div className="inline-flex items-center gap-3">
         <button
@@ -579,8 +584,7 @@ const restoreProduct = async (id) => {
                     <div className="mt-2 font-semibold">{formatINR(p.price)}</div>
                   )}
                 </div>
-
-                {isAdmin && (
+{isSuperAdmin && (
                   <div className="flex flex-col items-end gap-2 shrink-0">
                     {isEditing ? (
                       <>

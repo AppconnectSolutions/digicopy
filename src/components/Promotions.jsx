@@ -5,12 +5,16 @@ import { Edit, Trash2, CheckCircle } from "lucide-react";
 export default function Promotions() {
   const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
-  /* ===== AUTH ===== */
+  /* ================= AUTH ================= */
   const loggedUser = JSON.parse(localStorage.getItem("adminUser") || "null");
 
-  const isAdmin = loggedUser?.role === "ADMIN";
+const isSuperAdmin = loggedUser?.role === "SUPERADMIN";
 
-  /* ===== STATE ===== */
+// ONLY SUPERADMIN can manage
+const canManage = isSuperAdmin;
+
+
+  /* ================= STATE ================= */
   const [list, setList] = useState([]);
   const [editingId, setEditingId] = useState(null);
 
@@ -20,15 +24,21 @@ export default function Promotions() {
 
   const [loading, setLoading] = useState(false);
 
+  /* ================= FETCH ================= */
   const fetchPromotions = async () => {
-    const res = await axios.get(`${API_URL}/api/promotions`);
-    setList(Array.isArray(res.data) ? res.data : []);
+    try {
+      const res = await axios.get(`${API_URL}/api/promotions`);
+      setList(Array.isArray(res.data) ? res.data : []);
+    } catch (e) {
+      console.error("Fetch promotions failed", e);
+    }
   };
 
   useEffect(() => {
     fetchPromotions();
   }, []);
 
+  /* ================= HELPERS ================= */
   const resetForm = () => {
     setEditingId(null);
     setTitle("");
@@ -36,9 +46,14 @@ export default function Promotions() {
     setActive(true);
   };
 
+  /* ================= ACTIONS ================= */
   const save = async () => {
-    if (!isAdmin) return;
-    if (!message.trim()) return alert("Promotion message is required");
+    if (!canManage) return;
+
+    if (!message.trim()) {
+      alert("Promotion message is required");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -57,6 +72,7 @@ export default function Promotions() {
         });
         alert("Promotion created");
       }
+
       resetForm();
       await fetchPromotions();
     } catch (e) {
@@ -68,7 +84,8 @@ export default function Promotions() {
   };
 
   const edit = (p) => {
-    if (!isAdmin) return;
+    if (!canManage) return;
+
     setEditingId(p.id);
     setTitle(p.title || "");
     setMessage(p.message || "");
@@ -76,34 +93,38 @@ export default function Promotions() {
   };
 
   const activate = async (id) => {
-    if (!isAdmin) return;
+    if (!canManage) return;
+
     try {
       await axios.put(`${API_URL}/api/promotions/${id}/activate`);
       await fetchPromotions();
     } catch (e) {
       console.error(e);
-      alert("Failed to activate");
+      alert("Failed to activate promotion");
     }
   };
 
   const del = async (id) => {
-    if (!isAdmin) return;
+    if (!canManage) return;
+
     if (!window.confirm("Delete this promotion?")) return;
+
     try {
       await axios.delete(`${API_URL}/api/promotions/${id}`);
       await fetchPromotions();
     } catch (e) {
       console.error(e);
-      alert("Failed to delete");
+      alert("Failed to delete promotion");
     }
   };
 
+  /* ================= UI ================= */
   return (
     <div className="p-6">
       <h2 className="text-2xl font-bold mb-4 text-indigo-700">Promotions</h2>
 
-      {/* ===== FORM (ADMIN ONLY) ===== */}
-      {isAdmin && (
+      {/* ========= FORM (ADMIN + SUPERADMIN ONLY) ========= */}
+      {canManage && (
         <div className="bg-white border rounded-xl p-4 mb-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
             <input
@@ -154,7 +175,7 @@ export default function Promotions() {
         </div>
       )}
 
-      {/* ===== LIST ===== */}
+      {/* ========= LIST ========= */}
       <div className="overflow-x-auto bg-white shadow rounded-lg">
         <table className="min-w-full text-sm">
           <thead className="bg-gray-50">
@@ -187,10 +208,13 @@ export default function Promotions() {
                   </td>
 
                   <td className="p-3">{p.title || "—"}</td>
-                  <td className="p-3 max-w-[600px] truncate">{p.message}</td>
+
+                  <td className="p-3 max-w-[600px] truncate">
+                    {p.message}
+                  </td>
 
                   <td className="p-3 flex gap-3">
-                    {isAdmin ? (
+                    {canManage ? (
                       <>
                         <button
                           onClick={() => edit(p)}

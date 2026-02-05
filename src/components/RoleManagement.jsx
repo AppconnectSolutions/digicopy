@@ -41,12 +41,12 @@ export default function RoleManagement() {
     []
   );
 
+  // Determine if logged user is superadmin
   const role = String(loggedUser?.role || "").toUpperCase();
-const isAdmin = role === "ADMIN" || role === "OWNER";
+  const isSuperAdmin = role === "SUPERADMIN";
 
-// ✅ staff access controlled by approved flag
-const canManage = isAdmin || Number(loggedUser?.approved) === 1;
-
+  // ✅ staff access controlled by approved flag
+  const canManage = isSuperAdmin && Number(loggedUser?.approved) === 1;
 
   /* ================= LOAD ROLES ================= */
   const loadRoles = async () => {
@@ -60,16 +60,9 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
     }
   };
 
-  /* ================= LOAD ADMIN/STAFF USERS =================
-     Expected API suggestions (pick what you have):
-       1) GET  /api/admin/users
-       2) GET  /api/admin/users?status=all
-     User object assumed:
-       { id, name, email, role_id, role_name, is_active }
-  =========================================================== */
+  /* ================= LOAD ADMIN/STAFF USERS ================= */
   const loadAdminUsers = async () => {
-   if (!canManage) return;
-
+    if (!canManage) return;
 
     try {
       setUsersLoading(true);
@@ -78,8 +71,11 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
       const res = await fetch(`${API_URL}/api/admin/users`);
       const data = await res.json();
 
-      // allow {users:[...]} or [...]
-      const list = Array.isArray(data) ? data : Array.isArray(data?.users) ? data.users : [];
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.users)
+        ? data.users
+        : [];
       setStaffUsers(list);
     } catch (err) {
       console.error("Failed to load admin/staff users", err);
@@ -92,9 +88,9 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
 
   useEffect(() => {
     loadRoles();
-    if (isAdmin) loadAdminUsers();
+    if (isSuperAdmin) loadAdminUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin]);
+  }, [isSuperAdmin]);
 
   /* ================= ADD ROLE ================= */
   const addRole = async () => {
@@ -154,21 +150,15 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
       setUserPassword("");
       setUserRoleId("");
 
-      // refresh list
       loadAdminUsers();
     } catch (err) {
       alert("Server error while creating user");
     }
   };
 
-  /* ================= ACTIONS: GIVE ACCESS / REMOVE ACCESS =================
-     These require backend endpoints. I used common patterns:
-       - Give access  : PUT /api/admin/users/:id/activate   (or /grant-access)
-       - Remove access: PUT /api/admin/users/:id/deactivate (or /remove-access)
-     👉 If your endpoints are different, just change URLs below.
-  ======================================================================== */
+  /* ================= ACTIONS: GIVE ACCESS / REMOVE ACCESS ================= */
   const giveAccess = async (id) => {
-    if (!isAdmin) return;
+    if (!isSuperAdmin) return;
     if (!window.confirm("Give access to this user?")) return;
 
     try {
@@ -187,7 +177,7 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
   };
 
   const removeAccess = async (id) => {
-    if (!isAdmin) return;
+    if (!isSuperAdmin) return;
     if (!window.confirm("Remove access for this user?")) return;
 
     try {
@@ -211,6 +201,22 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
     return m;
   }, [roles]);
 
+  if (!isSuperAdmin) {
+    return (
+      <div className="p-6 bg-slate-100 min-h-screen">
+        <div className="bg-slate-900 text-white rounded-xl px-6 py-5 mb-6 flex items-center gap-3">
+          <ShieldCheck size={28} />
+          <div>
+            <h1 className="text-xl font-bold">Role Management</h1>
+            <p className="text-xs text-slate-300">
+              Access restricted — only SUPERADMIN can manage roles and staff.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   /* ================= UI ================= */
   return (
     <div className="p-6 bg-slate-100 min-h-screen">
@@ -225,8 +231,8 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
         </div>
       </div>
 
-      {/* ================= CREATE USER (ADMIN ONLY) ================= */}
-      {isAdmin && (
+      {/* ================= CREATE USER (SUPERADMIN ONLY) ================= */}
+      {isSuperAdmin && (
         <div className="bg-white rounded-xl shadow p-6 mb-6">
           <h2 className="font-bold mb-4">Create Admin / Staff Login</h2>
 
@@ -237,14 +243,12 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
               onChange={(e) => setUserName(e.target.value)}
               className="border px-3 py-2 rounded"
             />
-
             <input
               placeholder="Email"
               value={userEmail}
               onChange={(e) => setUserEmail(e.target.value)}
               className="border px-3 py-2 rounded"
             />
-
             <input
               type="password"
               placeholder="Password"
@@ -252,7 +256,6 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
               onChange={(e) => setUserPassword(e.target.value)}
               className="border px-3 py-2 rounded"
             />
-
             <select
               value={userRoleId}
               onChange={(e) => setUserRoleId(e.target.value)}
@@ -269,12 +272,11 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
 
           <button
             onClick={addAdminUser}
-            className="mt-4 bg-green-600 text-white px-6 py-2 rounded font-bold hover:bg-green-700"
-          >
+            className="mt-4 bg-green-600 text-white px-6 py-2 rounded font-bold hover:bg-green-700"          >
             Create User
           </button>
 
-          {/* ================= USERS TABLE (ADMIN/STAFF) ================= */}
+          {/* ================= USERS TABLE (SUPERADMIN ONLY) ================= */}
           <div className="mt-8">
             <div className="flex items-center justify-between gap-3 mb-3">
               <h3 className="font-bold">Admins / Staff List</h3>
@@ -306,7 +308,6 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
                       <th className="px-6 py-3 text-right">Actions</th>
                     </tr>
                   </thead>
-
                   <tbody>
                     {usersLoading ? (
                       <tr>
@@ -322,7 +323,10 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
                       </tr>
                     ) : (
                       staffUsers.map((u) => {
-                        const active = u.is_active === 1 || u.is_active === true || u.status === "ACTIVE";
+                        const active =
+                          u.is_active === 1 ||
+                          u.is_active === true ||
+                          u.status === "ACTIVE";
                         const rName =
                           u.role_name ||
                           roleNameById.get(Number(u.role_id)) ||
@@ -387,7 +391,10 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
                   </div>
                 ) : (
                   staffUsers.map((u) => {
-                    const active = u.is_active === 1 || u.is_active === true || u.status === "ACTIVE";
+                    const active =
+                      u.is_active === 1 ||
+                      u.is_active === true ||
+                      u.status === "ACTIVE";
                     const rName =
                       u.role_name ||
                       roleNameById.get(Number(u.role_id)) ||
@@ -397,9 +404,15 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
                       <div key={u.id} className="p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <div className="font-bold truncate">{u.name || "-"}</div>
-                            <div className="text-sm text-gray-600 break-all">{u.email || "-"}</div>
-                            <div className="mt-1 text-xs text-gray-500">{rName}</div>
+                            <div className="font-bold truncate">
+                              {u.name || "-"}
+                            </div>
+                            <div className="text-sm text-gray-600 break-all">
+                              {u.email || "-"}
+                            </div>
+                            <div className="mt-1 text-xs text-gray-500">
+                              {rName}
+                            </div>
                           </div>
 
                           <span
@@ -439,11 +452,7 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
               </div>
             </div>
 
-            <p className="mt-3 text-xs text-gray-500">
-              ⚠️ Note: This UI calls <code>/api/admin/users/:id/activate</code> and{" "}
-              <code>/api/admin/users/:id/deactivate</code>. If your backend uses
-              different endpoints, tell me the exact URLs and I’ll update the code.
-            </p>
+           
           </div>
         </div>
       )}
@@ -461,7 +470,6 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
             placeholder="Role Name (Admin, Staff, Teacher)"
             className="border px-3 py-2 rounded"
           />
-
           <input
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -493,14 +501,16 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
             {roles.map((r) => (
               <tr key={r.id} className="border-t">
                 <td className="px-6 py-3 font-bold">{r.role_name}</td>
-                <td className="px-6 py-3 text-gray-600">{r.description || "-"}</td>
+                <td className="px-6 py-3 text-gray-600">
+                  {r.description || "-"}
+                </td>
                 <td className="px-6 py-3 text-center text-green-600 font-bold">
                   Active
                 </td>
               </tr>
             ))}
 
-            {roles.length === 0 && (
+                        {roles.length === 0 && (
               <tr>
                 <td colSpan="3" className="p-6 text-center text-gray-400">
                   No roles created yet

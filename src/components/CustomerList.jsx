@@ -51,11 +51,17 @@ export default function CustomerList() {
     }
   }, []);
 
-  const role = String(loggedUser?.role || "").toUpperCase();
-const isAdmin = role === "ADMIN" || role === "OWNER";
+const role = String(loggedUser?.role || "").toUpperCase();
+
+const isSuperAdmin = role === "SUPERADMIN";
+const isAdmin = role === "ADMIN";
+const isStaff = role === "STAFF";
+
+
 
 // ✅ staff access controlled by approved flag
-const canManage = isAdmin || Number(loggedUser?.approved) === 1;
+const canEdit = isSuperAdmin || isAdmin || isStaff;
+
 
 
   /* ================= WhatsApp tab re-use ================= */
@@ -289,7 +295,8 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
 
   /* ================= Edit / delete ================= */
   const startEdit = (c) => {
-   if (!canManage) return;
+   if (!canEdit) return;
+
 
 
     setEditingId(c.id);
@@ -306,7 +313,7 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
   };
 
   const saveEdit = async (customer) => {
-   if (!canManage) return;
+   if (!canEdit) return;
 
     try {
       await fetch(`${API_URL}/api/customers/${customer.id}`, {
@@ -334,7 +341,7 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
   };
 
   const deleteCustomer = async (id) => {
-    if (!canManage) return;
+     if (!isSuperAdmin) return;
     if (!window.confirm("Deactivate this customer?")) return;
 
     try {
@@ -474,51 +481,63 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
                 </td>
 
                 <td className="px-6 py-3 text-center">
-                  <button
-                    onClick={() => viewTransactions(c)}
-                    className="bg-green-100 text-green-700 px-3 py-1.5 rounded text-xs inline-flex items-center gap-2"
-                  >
-                    View
-                  </button>
+                   {isSuperAdmin ? (
+
+  <button
+    onClick={() => viewTransactions(c)}
+    className="bg-green-100 text-green-700 px-3 py-1.5 rounded text-xs inline-flex items-center gap-2"
+  >
+    View
+  </button>
+) : (
+  <span className="text-gray-400 text-xs">Restricted</span>
+)}
+
                 </td>
 
-                <td className="px-6 py-3 text-center">
-                  {isAdmin ? (
-                    editingId === c.id ? (
-                      <div className="inline-flex gap-2">
-                        <button
-                          onClick={() => saveEdit(c)}
-                          className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs inline-flex items-center gap-1"
-                        >
-                          <Save size={14} /> Save
-                        </button>
-                        <button
-                          onClick={cancelEdit}
-                          className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs inline-flex items-center gap-1"
-                        >
-                          <X size={14} /> Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="inline-flex gap-2">
-                        <button
-                          onClick={() => startEdit(c)}
-                          className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs inline-flex items-center gap-1"
-                        >
-                          <Edit2 size={14} /> Update
-                        </button>
-                        <button
-                          onClick={() => deleteCustomer(c.id)}
-                          className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs inline-flex items-center gap-1"
-                        >
-                          <Trash2 size={14} /> Deactivate
-                        </button>
-                      </div>
-                    )
-                  ) : (
-                    <span className="text-gray-400 text-xs">View only</span>
-                  )}
-                </td>
+              <td className="px-6 py-3 text-center">
+  {canEdit ? (
+    editingId === c.id ? (
+      <div className="inline-flex gap-2">
+        <button
+          onClick={() => saveEdit(c)}
+          className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs inline-flex items-center gap-1"
+        >
+          <Save size={14} /> Save
+        </button>
+        <button
+          onClick={cancelEdit}
+          className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs inline-flex items-center gap-1"
+        >
+          <X size={14} /> Cancel
+        </button>
+      </div>
+    ) : (
+      <div className="inline-flex gap-2">
+        {/* EDIT → Admin + Staff + SuperAdmin */}
+        <button
+          onClick={() => startEdit(c)}
+          className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs inline-flex items-center gap-1"
+        >
+          <Edit2 size={14} /> Update
+        </button>
+
+        {/* DELETE → SuperAdmin ONLY */}
+        {isSuperAdmin && (
+          <button
+            onClick={() => deleteCustomer(c.id)}
+            className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs inline-flex items-center gap-1"
+          >
+            <Trash2 size={14} /> Deactivate
+          </button>
+        )}
+      </div>
+    )
+  ) : (
+    <span className="text-gray-400 text-xs">View only</span>
+  )}
+</td>
+
               </tr>
             ))}
           </tbody>
@@ -561,7 +580,8 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
                 </div>
 
                 {/* Admin quick actions */}
-                {isAdmin && !isEditing ? (
+                {canEdit && !isEditing ? (
+
                   <div className="shrink-0 flex gap-2">
                     <button
                       onClick={() => startEdit(c)}
@@ -635,14 +655,25 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
               </div>
 
               <div className="mt-2 grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => viewTransactions(c)}
-                  className="w-full bg-green-100 text-green-700 px-3 py-2 rounded-lg text-xs font-semibold"
-                >
-                  Transactions
-                </button>
+                {isSuperAdmin ? (
+  <button
+    onClick={() => viewTransactions(c)}
+    className="w-full bg-green-100 text-green-700 px-3 py-2 rounded-lg text-xs font-semibold"
+  >
+    Transactions
+  </button>
+) : (
+  <button
+    disabled
+    className="w-full bg-gray-100 text-gray-400 px-3 py-2 rounded-lg text-xs font-semibold"
+  >
+    Restricted
+  </button>
+)}
 
-                {isAdmin ? (
+
+               {canEdit ? (
+
                   isEditing ? (
                     <div className="grid grid-cols-2 gap-2">
                       <button
@@ -677,7 +708,8 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
               </div>
 
               {/* If editing, show deactivate under */}
-              {isAdmin && isEditing ? (
+              {isSuperAdmin && isEditing ? (
+
                 <button
                   onClick={() => deleteCustomer(c.id)}
                   className="mt-2 w-full bg-red-100 text-red-700 px-3 py-2 rounded-lg text-xs font-semibold inline-flex items-center justify-center gap-2"

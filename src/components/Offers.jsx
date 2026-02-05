@@ -18,11 +18,14 @@ export default function OfferManagement() {
     () => safeParseJSON(localStorage.getItem("adminUser")),
     []
   );
- const role = String(loggedUser?.role || "").toUpperCase();
-const isAdmin = role === "ADMIN" || role === "OWNER";
+const roleId = Number(loggedUser?.role_id);
+const roleName = String(loggedUser?.role || "").toUpperCase();
+
+// ✅ SUPER ADMIN ONLY
+const isSuperAdmin = roleId === 5 || roleName === "SUPERADMIN";
+
 
 // ✅ staff access controlled by approved flag
-const canManage = isAdmin || Number(loggedUser?.approved) === 1;
 
   const [products, setProducts] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -106,7 +109,7 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
   };
 
   const handleSaveOffer = async () => {
-   if (!canManage) return;
+   if (!isSuperAdmin) return;
 
 
     if (!selectedProduct || !buyQuantity || !freeQuantity) {
@@ -144,7 +147,7 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
   };
 
   const handleEdit = (offer) => {
-   if (!canManage) return;
+   if (!isSuperAdmin) return;
 
 
     setSelectedProduct(String(getProductId(offer) || ""));
@@ -155,7 +158,7 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
   };
 
   const handleDelete = async (id) => {
-   if (!canManage) return;
+   if (!isSuperAdmin) return;
 
     if (!window.confirm("Delete this offer?")) return;
 
@@ -187,7 +190,8 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
             <div className="text-sm text-gray-500 truncate">{roleName}</div>
           </div>
 
-          {isAdmin ? (
+          {isSuperAdmin ? (
+
             <div className="shrink-0 flex gap-2">
               <button
                 onClick={() => handleEdit(o)}
@@ -220,7 +224,8 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
           </div>
         </div>
 
-        {!isAdmin ? (
+        {isSuperAdmin ? (
+
           <div className="mt-3 text-xs text-gray-400">View only</div>
         ) : null}
       </div>
@@ -245,7 +250,7 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
       ) : null}
 
       {/* 🔐 ADMIN ONLY FORM */}
-      {isAdmin && (
+      {isSuperAdmin && (
         <div className="bg-white border rounded-xl p-4 mb-6">
           <div className="grid grid-cols-1 lg:grid-cols-6 gap-3">
             <div className="lg:col-span-2">
@@ -377,7 +382,8 @@ const canManage = isAdmin || Number(loggedUser?.approved) === 1;
                     <td className="p-3">{getFreeQty(o)}</td>
 
                     <td className="p-3">
-                      {isAdmin ? (
+                     {isSuperAdmin ? (
+
                         <div className="flex gap-3">
                           <button
                             onClick={() => handleEdit(o)}
